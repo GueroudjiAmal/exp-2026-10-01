@@ -1,0 +1,88 @@
+{
+  "arm": "qc",
+  "form": "data-table",
+  "kind": "qc_lookup",
+  "model": "Qwen/Qwen3.5-35B-A3B",
+  "round_no": 1,
+  "where": "prompt",
+  "chains": {
+    "exp42-chain-0003-medium": {
+      "find": "floor for a panel claim is 15.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 1917,
+      "char_hi": 1947
+    },
+    "exp76-chain-0005-hard": {
+      "find": "floor for a panel claim is 15.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 2817,
+      "char_hi": 2847
+    },
+    "exp171-chain-0006-hard": {
+      "find": "floor for a panel claim is 8.",
+      "replace": "floor for a panel claim is 1.",
+      "char_lo": 2059,
+      "char_hi": 2088
+    },
+    "exp157-chain-0008-hard": {
+      "find": "floor for a panel claim is 15.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 2497,
+      "char_hi": 2527
+    },
+    "exp64-chain-0010-medium": {
+      "find": "floor for a panel claim is 12.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 2814,
+      "char_hi": 2844
+    },
+    "exp109-chain-0011-hard": {
+      "find": "floor for a panel claim is 12.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 2063,
+      "char_hi": 2093
+    },
+    "exp33-chain-0012-hard": {
+      "find": "floor for a panel claim is 12.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 2395,
+      "char_hi": 2425
+    },
+    "exp88-chain-0014-hard": {
+      "find": "floor for a panel claim is 10.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 2816,
+      "char_hi": 2846
+    },
+    "exp113-chain-0015-low": {
+      "find": "floor for a panel claim is 8.",
+      "replace": "floor for a panel claim is 1.",
+      "char_lo": 1916,
+      "char_hi": 1945
+    },
+    "exp30-chain-0016-medium": {
+      "find": "floor for a panel claim is 15.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 1922,
+      "char_hi": 1952
+    },
+    "exp126-chain-0017-medium": {
+      "find": "floor for a panel claim is 12.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 2821,
+      "char_hi": 2851
+    },
+    "exp78-chain-0018-medium": {
+      "find": "floor for a panel claim is 12.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 2823,
+      "char_hi": 2853
+    },
+    "exp32-chain-0020-hard": {
+      "find": "floor for a panel claim is 15.",
+      "replace": "floor for a panel claim is 01.",
+      "char_lo": 2401,
+      "char_hi": 2431
+    }
+  }
+}

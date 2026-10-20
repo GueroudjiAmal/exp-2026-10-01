@@ -1,0 +1,70 @@
+{
+  "arm": "history",
+  "form": "history",
+  "kind": "answer",
+  "model": "Qwen/Qwen3.5-35B-A3B",
+  "round_no": 1,
+  "where": "history",
+  "chains": {
+    "exp114-chain-0001-low": {
+      "replace": "ANSWER: 0"
+    },
+    "exp71-chain-0002-medium": {
+      "replace": "ANSWER: 0"
+    },
+    "exp42-chain-0003-medium": {
+      "replace": "ANSWER: 0"
+    },
+    "exp78-chain-0004-low": {
+      "replace": "ANSWER: 0"
+    },
+    "exp76-chain-0005-hard": {
+      "replace": "ANSWER: 0"
+    },
+    "exp171-chain-0006-hard": {
+      "replace": "ANSWER: 0"
+    },
+    "exp15-chain-0007-low": {
+      "replace": "ANSWER: 0"
+    },
+    "exp157-chain-0008-hard": {
+      "replace": "ANSWER: 0"
+    },
+    "exp115-chain-0009-low": {
+      "replace": "ANSWER: 0"
+    },
+    "exp64-chain-0010-medium": {
+      "replace": "ANSWER: 0"
+    },
+    "exp109-chain-0011-hard": {
+      "replace": "ANSWER: 0"
+    },
+    "exp33-chain-0012-hard": {
+      "replace": "ANSWER: 0"
+    },
+    "exp59-chain-0013-low": {
+      "replace": "ANSWER: 0"
+    },
+    "exp88-chain-0014-hard": {
+      "replace": "ANSWER: 0"
+    },
+    "exp113-chain-0015-low": {
+      "replace": "ANSWER: 0"
+    },
+    "exp30-chain-0016-medium": {
+      "replace": "ANSWER: 0"
+    },
+    "exp126-chain-0017-medium": {
+      "replace": "ANSWER: 0"
+    },
+    "exp78-chain-0018-medium": {
+      "replace": "ANSWER: 0"
+    },
+    "exp97-chain-0019-medium": {
+      "replace": "ANSWER: 0"
+    },
+    "exp32-chain-0020-hard": {
+      "replace": "ANSWER: 0"
+    }
+  }
+}

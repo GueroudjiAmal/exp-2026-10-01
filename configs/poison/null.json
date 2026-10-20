@@ -1,0 +1,130 @@
+{
+  "arm": "null",
+  "form": "control",
+  "kind": "session",
+  "model": "Qwen/Qwen3.5-35B-A3B",
+  "round_no": 1,
+  "where": "prompt",
+  "chains": {
+    "exp114-chain-0001-low": {
+      "find": "experiment 114 at the",
+      "replace": "experiment 115 at the",
+      "char_lo": 26,
+      "char_hi": 47
+    },
+    "exp71-chain-0002-medium": {
+      "find": "experiment 71 at the",
+      "replace": "experiment 72 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp42-chain-0003-medium": {
+      "find": "experiment 42 at the",
+      "replace": "experiment 43 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp78-chain-0004-low": {
+      "find": "experiment 78 at the",
+      "replace": "experiment 79 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp76-chain-0005-hard": {
+      "find": "experiment 76 at the",
+      "replace": "experiment 77 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp171-chain-0006-hard": {
+      "find": "experiment 171 at the",
+      "replace": "experiment 172 at the",
+      "char_lo": 26,
+      "char_hi": 47
+    },
+    "exp15-chain-0007-low": {
+      "find": "experiment 15 at the",
+      "replace": "experiment 16 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp157-chain-0008-hard": {
+      "find": "experiment 157 at the",
+      "replace": "experiment 158 at the",
+      "char_lo": 26,
+      "char_hi": 47
+    },
+    "exp115-chain-0009-low": {
+      "find": "experiment 115 at the",
+      "replace": "experiment 116 at the",
+      "char_lo": 26,
+      "char_hi": 47
+    },
+    "exp64-chain-0010-medium": {
+      "find": "experiment 64 at the",
+      "replace": "experiment 65 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp109-chain-0011-hard": {
+      "find": "experiment 109 at the",
+      "replace": "experiment 110 at the",
+      "char_lo": 26,
+      "char_hi": 47
+    },
+    "exp33-chain-0012-hard": {
+      "find": "experiment 33 at the",
+      "replace": "experiment 34 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp59-chain-0013-low": {
+      "find": "experiment 59 at the",
+      "replace": "experiment 60 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp88-chain-0014-hard": {
+      "find": "experiment 88 at the",
+      "replace": "experiment 89 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp113-chain-0015-low": {
+      "find": "experiment 113 at the",
+      "replace": "experiment 114 at the",
+      "char_lo": 26,
+      "char_hi": 47
+    },
+    "exp30-chain-0016-medium": {
+      "find": "experiment 30 at the",
+      "replace": "experiment 31 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp126-chain-0017-medium": {
+      "find": "experiment 126 at the",
+      "replace": "experiment 127 at the",
+      "char_lo": 26,
+      "char_hi": 47
+    },
+    "exp78-chain-0018-medium": {
+      "find": "experiment 78 at the",
+      "replace": "experiment 79 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp97-chain-0019-medium": {
+      "find": "experiment 97 at the",
+      "replace": "experiment 98 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    },
+    "exp32-chain-0020-hard": {
+      "find": "experiment 32 at the",
+      "replace": "experiment 33 at the",
+      "char_lo": 26,
+      "char_hi": 46
+    }
+  }
+}

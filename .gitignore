@@ -1,0 +1,26 @@
+.venv/
+.venv-gpu/
+bin/
+requirements.gpu.lock
+__pycache__/
+*.pyc
+.pytest_cache/
+.opal-push-stamp
+logs/
+# Run outputs: SafeTensors files and Flowcept dumps. They live on /eagle and
+# are pulled back here on demand; results/plan/ is the one tracked artifact
+# because it is what the Polaris walltime request is sized from.
+# Run outputs. 14 GB of SafeTensors and Flowcept dumps live here; they are
+# produced on the GPU box and pulled on demand, never versioned.
+results/*
+!results/.gitkeep
+
+# results/plan/ is NOT tracked either. It is a cache of dry runs, keyed by a
+# hash of (model, system prompt, benchmark CSV), and run_gpu.sh rebuilds any
+# entry it needs in about two minutes. Tracking it would version a derived
+# artifact whose keys change whenever a default moves.
+
+# The benchmark lives at data/opal_chains.csv. This is a byte-identical copy
+# left at the top level; nothing reads it, and tracking both would create two
+# sources of truth for the one file the experiment is about.
+/opal_chains.csv

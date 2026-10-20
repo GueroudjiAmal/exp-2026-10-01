@@ -1,0 +1,29 @@
+# Tooling config only. The experiment is run from scripts/, not installed as a
+# package -- src/ goes on PYTHONPATH (see Makefile and polaris/env.sh).
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes: unused imports and names, undefined names
+    "I",         # import ordering
+    "UP",        # outdated idioms
+    "B",         # bugbears: mutable defaults, shadowed loop vars, ...
+    "SIM",       # simplifiable constructs
+    "RET",       # return-path tangles
+    "C4",        # comprehension misuse
+    "ARG",       # unused arguments
+    "PTH",       # os.path where pathlib reads better
+]
+ignore = [
+    "E501",      # long lines are prose in docstrings, checked by eye
+    "B008",      # argparse defaults are evaluated at parse time on purpose
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts put src/ on sys.path before importing from it; that is the point.
+"scripts/*.py" = ["E402"]

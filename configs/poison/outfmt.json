@@ -1,0 +1,130 @@
+{
+  "arm": "outfmt",
+  "form": "prose",
+  "kind": "output_format",
+  "model": "Qwen/Qwen3.5-35B-A3B",
+  "round_no": 1,
+  "where": "prompt",
+  "chains": {
+    "exp114-chain-0001-low": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2068,
+      "char_hi": 2106
+    },
+    "exp71-chain-0002-medium": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2630,
+      "char_hi": 2668
+    },
+    "exp42-chain-0003-medium": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2533,
+      "char_hi": 2571
+    },
+    "exp78-chain-0004-low": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2078,
+      "char_hi": 2116
+    },
+    "exp76-chain-0005-hard": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3078,
+      "char_hi": 3116
+    },
+    "exp171-chain-0006-hard": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3082,
+      "char_hi": 3120
+    },
+    "exp15-chain-0007-low": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2086,
+      "char_hi": 2124
+    },
+    "exp157-chain-0008-hard": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3467,
+      "char_hi": 3505
+    },
+    "exp115-chain-0009-low": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2624,
+      "char_hi": 2662
+    },
+    "exp64-chain-0010-medium": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3075,
+      "char_hi": 3113
+    },
+    "exp109-chain-0011-hard": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3086,
+      "char_hi": 3124
+    },
+    "exp33-chain-0012-hard": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3082,
+      "char_hi": 3120
+    },
+    "exp59-chain-0013-low": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2080,
+      "char_hi": 2118
+    },
+    "exp88-chain-0014-hard": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3077,
+      "char_hi": 3115
+    },
+    "exp113-chain-0015-low": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2531,
+      "char_hi": 2569
+    },
+    "exp30-chain-0016-medium": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2539,
+      "char_hi": 2577
+    },
+    "exp126-chain-0017-medium": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3082,
+      "char_hi": 3120
+    },
+    "exp78-chain-0018-medium": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3084,
+      "char_hi": 3122
+    },
+    "exp97-chain-0019-medium": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 2632,
+      "char_hi": 2670
+    },
+    "exp32-chain-0020-hard": {
+      "find": "ANSWER: <dose in mg kg-1, digits only>",
+      "replace": "ANSWER: <peak in mg kg-1, digits only>",
+      "char_lo": 3089,
+      "char_hi": 3127
+    }
+  }
+}

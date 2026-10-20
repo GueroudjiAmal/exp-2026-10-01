@@ -1,0 +1,74 @@
+# Polaris compute nodes: FULLY OFFLINE. No Redis, no Mongo, no network of any
+# kind -- which is what makes a single-node job with no service dependencies
+# possible at all.
+#
+# Provenance is written to disk as JSONL via project.dump_buffer. db_flush_mode
+# =offline REQUIRES every persistent DB off, LMDB included (configs.py raises if
+# you enable one), so do not turn lmdb back on here. append_id_to_path keeps
+# parallel writers apart.
+#
+# The dump path is RELATIVE, so job.pbs cds into the run directory and every
+# artifact lands there together. Ingest into Mongo afterwards, off the node.
+flowcept_version: 1.0.3
+
+project:
+  debug: false
+  json_serializer: default
+  replace_non_json_serializable: true
+  performance_logging: false
+  # Keep false -- see configs/flowcept_local.yaml for why. On Polaris the cost
+  # is higher: the run is offline, so a capture that turns out to be
+  # uninterpretable cannot be re-derived without another allocation.
+  enrich_messages: false
+  db_flush_mode: offline
+  dump_buffer:
+    enabled: true
+    path: flowcept_buffer.jsonl
+    append_id_to_path: true
+    append_workflow_id_to_path: true
+    delete_previous_file: false
+
+log:
+  log_path: "default"
+  log_file_level: info
+  log_stream_level: error
+
+telemetry_capture:
+  gpu: [used, activity, temperature, power, others, name, id]
+  cpu: true
+  per_cpu: false
+  process_info: true
+  mem: true
+  disk: false
+  network: false
+  machine_info: true
+
+instrumentation:
+  enabled: true
+
+experiment:
+  user: agueroudji
+
+mq:
+  enabled: false
+
+kv_db:
+  enabled: false
+
+sys_metadata:
+  environment_id: "polaris"
+
+db_buffer:
+  insertion_buffer_time_secs: 5
+  buffer_size: 500
+  remove_empty_fields: false
+  stop_max_trials: 300
+  stop_trials_sleep: 0.1
+
+databases:
+  lmdb:
+    enabled: false
+  mongodb:
+    enabled: false
+
+adapters: {}

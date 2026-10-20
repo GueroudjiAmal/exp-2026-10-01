@@ -1,0 +1,88 @@
+{
+  "arm": "schema",
+  "form": "data-table",
+  "kind": "schema_lookup",
+  "model": "Qwen/Qwen3.5-35B-A3B",
+  "round_no": 1,
+  "where": "prompt",
+  "chains": {
+    "exp71-chain-0002-medium": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2462,
+      "char_hi": 2514
+    },
+    "exp76-chain-0005-hard": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2138,
+      "char_hi": 2190
+    },
+    "exp171-chain-0006-hard": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2914,
+      "char_hi": 2966
+    },
+    "exp157-chain-0008-hard": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2926,
+      "char_hi": 2978
+    },
+    "exp115-chain-0009-low": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2029,
+      "char_hi": 2081
+    },
+    "exp64-chain-0010-medium": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2135,
+      "char_hi": 2187
+    },
+    "exp109-chain-0011-hard": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2491,
+      "char_hi": 2543
+    },
+    "exp33-chain-0012-hard": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2142,
+      "char_hi": 2194
+    },
+    "exp88-chain-0014-hard": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2563,
+      "char_hi": 2615
+    },
+    "exp126-chain-0017-medium": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2141,
+      "char_hi": 2193
+    },
+    "exp78-chain-0018-medium": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2144,
+      "char_hi": 2196
+    },
+    "exp97-chain-0019-medium": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2037,
+      "char_hi": 2089
+    },
+    "exp32-chain-0020-hard": {
+      "find": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  plant",
+      "replace": "    Fv/Fm_Lss      fc1       fc1_values  a.u.  area",
+      "char_lo": 2148,
+      "char_hi": 2200
+    }
+  }
+}

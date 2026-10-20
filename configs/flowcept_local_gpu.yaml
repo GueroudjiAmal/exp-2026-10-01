@@ -1,0 +1,87 @@
+# Local NVIDIA box: a REAL capture run, with provenance still written offline.
+#
+# Differs from flowcept_local.yaml in exactly one way that matters: GPU
+# telemetry is ON, because there is now an NVIDIA device to read. Everything
+# else is identical, deliberately -- the whole point of running here is that it
+# is the same code path as Polaris, so the config should not fork either.
+#
+# Offline rather than Redis+Mongo on purpose. The engine runs single-process
+# (VLLM_ENABLE_V1_MULTIPROCESSING=0), so the connector emits in-process and
+# needs no message queue; adding one would be a service to run, a service to
+# debug, and a difference from the Polaris arm. If you DO want live querying,
+# point FLOWCEPT_SETTINGS_PATH at a Redis+Mongo config instead -- nothing in
+# this experiment's code depends on the flush mode.
+flowcept_version: 1.0.3
+
+project:
+  debug: false
+  json_serializer: default
+  replace_non_json_serializable: true
+  performance_logging: false
+  # Keep false. WorkflowObject.enrich() REPLACES conf with {"settings_path": ...}
+  # instead of merging into it, which wipes the model/tokenizer the connector
+  # records on its workflow -- and without the tokenizer, prompt_token_ids in the
+  # captured tasks cannot be decoded back to text. That makes the whole capture
+  # uninterpretable, so this stays off until the clobber is fixed upstream.
+  enrich_messages: false
+  db_flush_mode: offline
+  dump_buffer:
+    enabled: true
+    path: flowcept_buffer.jsonl
+    append_id_to_path: true
+    append_workflow_id_to_path: true
+    delete_previous_file: false
+
+log:
+  log_path: "default"
+  log_file_level: info
+  log_stream_level: error
+
+telemetry_capture:
+  # No `used`. On a unified-memory GPU (GB10 / DGX Spark, GH200) there is no
+  # discrete framebuffer, so NVML's memory query raises NotSupported -- the same
+  # reason `nvidia-smi --query-gpu=memory.total` prints [N/A]. Device memory
+  # used is not a meaningful number on those parts anyway: it is shared with the
+  # host. Everything else below works there.
+  #
+  # Dropping it from this list is only half the fix; upstream flowcept makes
+  # that NVML call unconditionally, before checking the config, so
+  # scripts/lib_siblings.sh patches the vendored copy to query it lazily.
+  gpu: [activity, temperature, power, others, name, id]
+  cpu: true
+  per_cpu: false
+  process_info: true
+  mem: true
+  disk: false
+  network: false
+  machine_info: true
+
+instrumentation:
+  enabled: true
+
+experiment:
+  user: agueroudji
+
+mq:
+  enabled: false
+
+kv_db:
+  enabled: false
+
+sys_metadata:
+  environment_id: "local-gpu"
+
+db_buffer:
+  insertion_buffer_time_secs: 5
+  buffer_size: 500
+  remove_empty_fields: false
+  stop_max_trials: 300
+  stop_trials_sleep: 0.1
+
+databases:
+  lmdb:
+    enabled: false
+  mongodb:
+    enabled: false
+
+adapters: {}

@@ -1,0 +1,111 @@
+#!/bin/bash -l
+#PBS -N opal-attn
+#PBS -l select=1
+#PBS -l walltime=02:00:00
+#PBS -l filesystems=home:eagle
+#PBS -q preemptable
+#PBS -j oe
+#PBS -o logs/
+# Submit with your allocation:  qsub -A <project> polaris/job.pbs
+#
+# `select=1` is one whole node -- Polaris nodes are allocated exclusively, so
+# all 4 A100s come with it. ALCF's docs do not list `ngpus` as a requestable
+# resource, so do not add it; set OPAL_TP to choose how many vLLM actually uses.
+#
+# Walltime: the local dry run (results/plan/plan.json) projects ~907k prompt
+# tokens over 430 turns. Capture is memory-bandwidth bound and roughly linear in
+# prompt_tokens x decode_steps, and the connector's own measurements put the
+# end-to-end slowdown in the high single digit percent. Two hours is generous
+# for a 4B model on one A100; drop to `-q debug` with OPAL_LIMIT=5 to rehearse.
+#
+# This job touches the network zero times: weights and wheels were staged by
+# polaris/setup.sh, the benchmark CSV travels with the source, and provenance is
+# written to disk rather than to Redis/Mongo.
+
+set -euo pipefail
+
+cd "${PBS_O_WORKDIR:-$PWD}"
+mkdir -p logs
+
+: "${OPAL_PROJECT:?set OPAL_PROJECT (export it, or add it to ~/.bashrc)}"
+source ./polaris/env.sh   # offline flags, caches, venv, FLOWCEPT_SETTINGS_PATH
+
+# --- run directory ------------------------------------------------------------
+# Flowcept's offline output uses a path relative to cwd, so giving each run its
+# own directory is what keeps runs apart -- and the SafeTensors files go in the
+# same place, so one directory is the whole artifact.
+RUN_ID="${PBS_JOBID%%.*}"
+RUN_DIR="${OPAL_RUNS}/${RUN_ID}"
+mkdir -p "$RUN_DIR"
+
+MODEL="${OPAL_MODEL:-Qwen/Qwen3-4B-Instruct-2507}"
+LIMIT="${OPAL_LIMIT:-0}"               # 0 = all 100 chains
+MAX_TOKENS="${OPAL_MAX_TOKENS:-32}"    # OPAL answers are one line
+MAX_MODEL_LEN="${OPAL_MAX_MODEL_LEN:-8192}"
+MAX_NUM_SEQS="${OPAL_MAX_NUM_SEQS:-64}"
+TOP_PCT="${OPAL_TOP_PCT:-10}"
+CHUNK_SIZE="${OPAL_CHUNK_SIZE:-32}"
+TP="${OPAL_TP:-1}"                     # 1..4 (A100 40GB each). Must divide the
+                                       # model's KV head count. NB: the
+                                       # connector's cross-rank reduction is
+                                       # unit-tested but has never run on >1 GPU.
+
+echo "host         $(hostname)"
+echo "run dir      $RUN_DIR"
+echo "model        $MODEL  (tp=$TP)"
+echo "chains       ${LIMIT:-all}   max_tokens=$MAX_TOKENS  top_pct=$TOP_PCT"
+echo "flowcept     $FLOWCEPT_SETTINGS_PATH"
+echo "offline      HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}"
+nvidia-smi -L || echo "!! no GPUs visible -- the connector cannot run"
+
+# Fail now, with a clear message, rather than 20 minutes in.
+python "${OPAL_ROOT}/polaris/check_vllm_api.py" --import || exit 1
+OPAL_MODEL="$MODEL" python - <<'PYCHECK'
+import os, sys
+from huggingface_hub import snapshot_download
+model = os.environ["OPAL_MODEL"]
+try:
+    snapshot_download(model, local_files_only=True)
+except Exception as e:
+    sys.exit(f"model {model!r} is not in HF_HOME={os.environ.get('HF_HOME')}: {e}\n"
+             f"Stage it in an interactive job: hf download {model}")
+print(f"model {model} present in local cache")
+PYCHECK
+
+# --- the run ------------------------------------------------------------------
+# run_experiment.py chdirs into --out-dir itself (Flowcept's dump path is
+# relative), so everything lands in RUN_DIR whatever this script's cwd is.
+python "${OPAL_ROOT}/scripts/run_experiment.py" \
+    --csv "${OPAL_ROOT}/data/opal_chains.csv" \
+    --model "$MODEL" \
+    --workflow-id "opal-attn-${RUN_ID}" \
+    --out-dir "$RUN_DIR" \
+    --limit "$LIMIT" \
+    --max-tokens "$MAX_TOKENS" \
+    --max-model-len "$MAX_MODEL_LEN" \
+    --max-num-seqs "$MAX_NUM_SEQS" \
+    --top-pct "$TOP_PCT" \
+    --chunk-size "$CHUNK_SIZE" \
+    --tensor-parallel-size "$TP" \
+    --cuda-graphs \
+    ${OPAL_EXTRA_ARGS:-}
+RC=$?
+
+echo
+echo "==> artifacts in $RUN_DIR"
+du -sh "$RUN_DIR" 2>/dev/null
+ls -la "$RUN_DIR" | head -20
+
+# Re-verify from the files on disk rather than trusting the in-memory buffer the
+# run already checked. They can differ -- the dump is what survives the job, and
+# it is the only thing an off-node analysis will ever see.
+echo
+python "${OPAL_ROOT}/scripts/analyze.py" "$RUN_DIR" || true
+
+cat <<SUMMARY
+
+Pull it back to the laptop and analyse there (no GPU needed):
+  rsync -avz ${USER}@polaris.alcf.anl.gov:${RUN_DIR} ./results/
+  python scripts/analyze.py results/${RUN_ID}
+SUMMARY
+exit "$RC"

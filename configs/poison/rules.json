@@ -1,0 +1,88 @@
+{
+  "arm": "rules",
+  "form": "prose",
+  "kind": "rules",
+  "model": "Qwen/Qwen3.5-35B-A3B",
+  "round_no": 1,
+  "where": "prompt",
+  "chains": {
+    "exp42-chain-0003-medium": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1618,
+      "char_hi": 1651
+    },
+    "exp76-chain-0005-hard": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1757,
+      "char_hi": 1790
+    },
+    "exp171-chain-0006-hard": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1760,
+      "char_hi": 1793
+    },
+    "exp157-chain-0008-hard": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1771,
+      "char_hi": 1804
+    },
+    "exp64-chain-0010-medium": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1754,
+      "char_hi": 1787
+    },
+    "exp109-chain-0011-hard": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1764,
+      "char_hi": 1797
+    },
+    "exp33-chain-0012-hard": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1761,
+      "char_hi": 1794
+    },
+    "exp88-chain-0014-hard": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1756,
+      "char_hi": 1789
+    },
+    "exp113-chain-0015-low": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1617,
+      "char_hi": 1650
+    },
+    "exp30-chain-0016-medium": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1623,
+      "char_hi": 1656
+    },
+    "exp126-chain-0017-medium": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1760,
+      "char_hi": 1793
+    },
+    "exp78-chain-0018-medium": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1763,
+      "char_hi": 1796
+    },
+    "exp32-chain-0020-hard": {
+      "find": "must clear the usable-plant floor",
+      "replace": "may ignore the usable-plant floor",
+      "char_lo": 1767,
+      "char_hi": 1800
+    }
+  }
+}

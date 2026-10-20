@@ -1,0 +1,391 @@
+diff --git a/src/vllm_attn_connector/connector.py b/src/vllm_attn_connector/connector.py
+index 8094efd..16944a8 100644
+--- a/src/vllm_attn_connector/connector.py
++++ b/src/vllm_attn_connector/connector.py
+@@ -38,6 +38,7 @@ exact -- retained mean mass plus residual is 1 by construction.
+ from __future__ import annotations
+ 
+ import math
++import os
+ import uuid
+ from dataclasses import dataclass, field
+ from pathlib import Path
+@@ -73,6 +74,8 @@ if TYPE_CHECKING:
+ 
+ logger = init_logger("vllm.attn_connector")
+ 
++_DEBUG = bool(os.environ.get("OPAL_ATTN_DEBUG"))
++
+ FLOAT_DECIMALS = 6
+ FULL_ATTENTION = "full_attention"
+ ACTIVITY = "decode_attention"
+@@ -128,6 +131,16 @@ def _model_conf(vllm_config: "VllmConfig") -> dict[str, Any]:
+             ("model", "tokenizer", "tokenizer_mode", "trust_remote_code", "max_model_len")}
+     conf["dtype"] = str(m.dtype)
+     conf["architectures"] = list(getattr(m, "architectures", []) or [])
++    # From hf_text_config, not hf_config. A multimodal model nests the language
++    # model's shape under `text_config`, and the top level has no
++    # num_attention_heads at all -- Qwen3.5 reported 2 query heads against a
++    # true 16 because every lookup missed and the fallback used num_kv_heads.
++    _text = getattr(m, "hf_text_config", None) or getattr(m, "hf_config", None)
++    for _k in ("num_attention_heads", "num_key_value_heads", "head_dim",
++               "num_hidden_layers"):
++        _v = getattr(_text, _k, None)
++        if _v is not None:
++            conf[_k] = int(_v)
+     conf["tensor_parallel_size"] = vllm_config.parallel_config.tensor_parallel_size
+     for k in ("revision", "tokenizer_revision", "served_model_name"):
+         v = getattr(m, k, None)
+@@ -252,7 +265,7 @@ class _RequestState:
+     working and an immediate OOM.
+     """
+ 
+-    __slots__ = ("blocks", "table", "scratch", "colsum", "pos", "val",
++    __slots__ = ("blocks", "table", "tables", "scratch", "colsum", "pos", "val",
+                  "resid",
+                  "prompt_len", "steps", "dropped", "prompt_token_ids", "event", "started",
+                  "seen_computed", "restarts", "k", "plan", "seg_idx", "seg_live",
+@@ -260,8 +273,16 @@ class _RequestState:
+                  "lsum", "lwins", "hent", "hdev", "hcnt", "hpos", "hval", "hmass")
+ 
+     def __init__(self, prompt_token_ids: list[int] | None):
+-        self.blocks: list[int] = []
+-        self.table: torch.Tensor | None = None
++        # Block ids are PER KV CACHE GROUP. A uniform model has one group and
++        # the distinction is invisible, but a hybrid one -- full attention
++        # interleaved with gated-delta-net layers, as in Qwen3.5 -- has
++        # several, and the full-attention group is not necessarily index 0.
++        # Taking group 0's ids for every group indexes the attention cache
++        # with another group's block numbers: the kernel then reads unrelated
++        # memory and the scores come back NaN, with nothing logged.
++        self.blocks: dict[int, list[int]] = {}
++        self.tables: dict[int, torch.Tensor] = {}
++        self.table: torch.Tensor | None = None     # group 0, kept for callers
+         self.scratch: torch.Tensor | None = None   # (groups, 2, T) acc-mean, running max
+         self.colsum: torch.Tensor | None = None    # (groups, 2, T) running sum / max
+         self.pos: torch.Tensor | None = None       # (groups, steps, k) int32
+@@ -455,6 +476,8 @@ class _WorkerSide:
+         self._layouts: dict[str, LayerLayout] = {}
+         self._scored: list[_Group] = []
+         self._num_q_heads = 0
++        self._dumped = False
++        self._warned_table = False
+         self._block_size = 0
+         self._state: dict[str, _RequestState] = {}
+         self._emitted: set[str] = set()
+@@ -533,6 +556,14 @@ class _WorkerSide:
+         )
+ 
+     def _infer_query_heads(self) -> int:
++        """Query heads per rank, or a loud complaint.
++
++        Three sources, in descending reliability. The last one -- assuming the
++        model is not using GQA at all -- is a guess, and guessing silently is
++        what let Qwen3.5 run with 2 query heads instead of 16: every scored
++        value was then computed over one eighth of the heads, with nothing in
++        the log to say so.
++        """
+         n = self._conf.get("num_attention_heads")
+         if n:
+             return int(n) // max(1, self._tp_size)
+@@ -542,12 +573,30 @@ class _WorkerSide:
+             cfg = AutoConfig.from_pretrained(
+                 self._conf["model"], trust_remote_code=self._conf.get("trust_remote_code", False)
+             )
++            # Multimodal configs nest the language model's shape.
++            cfg = getattr(cfg, "text_config", None) or cfg
+             return int(cfg.num_attention_heads) // max(1, self._tp_size)
+-        except Exception:
+-            return self._scored[0].layers[0].num_kv_heads
++        except Exception as exc:                            # noqa: BLE001
++            fallback = self._scored[0].layers[0].num_kv_heads
++            logger.warning(
++                "attn_connector: could not determine num_attention_heads for "
++                "%s (%s); assuming %d, i.e. no GQA. If the model does use GQA "
++                "this is WRONG and only %d of its query heads will be scored.",
++                self._conf.get("model"), exc, fallback, fallback)
++            return fallback
+ 
+     # -- per-step ----------------------------------------------------------- #
+ 
++    def _warn_no_table(self, gid: int, tables: dict) -> None:
++        """Complain once. Scoring a group with no block table of its own would
++        mean reading the cache with another group's block numbers."""
++        if not getattr(self, "_warned_table", False):
++            self._warned_table = True
++            logger.warning(
++                "attn_connector: no block table for kv cache group %d "
++                "(have groups %s). This request will not be scored.",
++                gid, sorted(tables))
++
+     def _warn_no_query(self, layer_name: str, rows: int) -> None:
+         """Complain once. A silent skip here produces all-zero records that pass
+         every structural check -- mass still "conserves", because 0 + 1 == 1."""
+@@ -614,8 +663,12 @@ class _WorkerSide:
+                         step_req.request_id, st.restarts,
+                     )
+                 if step_req.new_block_ids:
+-                    st.blocks.extend(step_req.new_block_ids[0])
+-                    st.table = torch.tensor(st.blocks, dtype=torch.int32, device=device)
++                    for _gi, _new in enumerate(step_req.new_block_ids):
++                        acc = st.blocks.setdefault(_gi, [])
++                        acc.extend(_new)
++                        st.tables[_gi] = torch.tensor(acc, dtype=torch.int32,
++                                                      device=device)
++                    st.table = st.tables.get(0)
+                 if step_req.num_scheduled_tokens > 1 or st.prompt_len == 0:
+                     # Still prefilling: freeze the prompt length as it grows.
+                     st.prompt_len = max(
+@@ -625,12 +678,20 @@ class _WorkerSide:
+ 
+             for row_i, step_req in enumerate(decoding):
+                 st = self._state[step_req.request_id]
+-                if st.table is None or st.prompt_len == 0:
++                if not st.tables or st.prompt_len == 0:
+                     continue
+                 if self._max_steps and st.steps >= self._max_steps:
+                     st.dropped += 1
+                     continue
+-                n_keys = min(st.prompt_len, len(st.blocks) * self._block_size)
++                # Blocks OF THE GROUP BEING SCORED. `st.blocks` is keyed by
++                # kv cache group, so its len() is the number of groups, not
++                # the number of blocks -- reading it directly capped every
++                # prompt at groups * block_size (4 * 1056 = 4224 on Qwen3.5),
++                # silently truncating the longest prompts and dropping the
++                # declared ranges past the cut.
++                _sg = self._scored[0].gid
++                n_keys = min(st.prompt_len,
++                             len(st.blocks.get(_sg, ())) * self._block_size)
+                 if st.n_keys:
+                     # Frozen with k on the first decode step: the selection plan
+                     # and the buffers are sized to it.
+@@ -665,10 +726,37 @@ class _WorkerSide:
+                         if q is None:
+                             self._warn_no_query(layout.layer_name, n_rows)
+                             continue
++                        table = st.tables.get(group.gid)
++                        if table is None:
++                            self._warn_no_table(group.gid, st.tables)
++                            continue
+                         probs = decode_attention(
+-                            q[row_i], layout.k_view, st.table, n_keys,
++                            q[row_i], layout.k_view, table, n_keys,
+                             num_query_heads=self._num_q_heads,
+                         )
++                        # OPAL_ATTN_DEBUG=1 dumps the first scored row. An
++                        # all-zero capture is otherwise indistinguishable from
++                        # a working one until the files are read back, and the
++                        # shapes here say immediately whether the problem is
++                        # upstream (q or the cache view) or downstream
++                        # (selection).
++                        if _DEBUG and not self._dumped:
++                            self._dumped = True
++                            logger.warning(
++                                "attn_connector DEBUG layer=%s gid=%d "
++                                "groups_with_blocks=%s table[:4]=%s "
++                                "table.max=%s n_blocks_in_cache=%d "
++                                "q_row=%s k_view=%s n_keys=%d num_q_heads=%d "
++                                "probs=%s probs.max=%.6g row0.sum=%.6g "
++                                "qrow.absmax=%.6g",
++                                layout.layer_name, group.gid, sorted(st.tables),
++                                table[:4].tolist(), int(table.max()),
++                                layout.k_view.shape[0],
++                                tuple(q[row_i].shape),
++                                tuple(layout.k_view.shape), n_keys,
++                                self._num_q_heads, tuple(probs.shape),
++                                float(probs.max()), float(probs[0].sum()),
++                                float(q[row_i].abs().max()))
+                         if self._layer_stats and n_keys > 1:
+                             _ = None
+                             # Per-head shape statistics, sink excluded: it takes
+diff --git a/src/vllm_attn_connector/kernels.py b/src/vllm_attn_connector/kernels.py
+index 5a6b169..a74cacc 100644
+--- a/src/vllm_attn_connector/kernels.py
++++ b/src/vllm_attn_connector/kernels.py
+@@ -13,8 +13,12 @@ The kernel reads the paged cache directly rather than gathering K into a dense
+ buffer first: a gather would add a full write-and-reread of the keys, roughly
+ doubling what is already the dominant memory traffic of decode.
+ 
+-One program handles one (head, physical block). Because a tile is exactly one
+-block, the key loads are contiguous despite the paged indirection.
++One program handles one (head, physical block), walking the block in
++fixed-size tiles. The tile is constant rather than the block size itself:
++``tl.arange`` needs a power-of-two extent, vLLM does not guarantee one of the
++block size, and a hybrid model's attention page can be very large (1056 tokens
++on Qwen3.5, sized to match its gated-delta-net state). Loads stay contiguous
++within a tile, and the tail is masked.
+ """
+ 
+ from __future__ import annotations
+@@ -52,6 +56,8 @@ if HAS_TRITON:
+         GROUP: tl.constexpr,          # query heads per KV head (GQA fan-out)
+         HEAD_SIZE: tl.constexpr,
+         PAD_D: tl.constexpr,
++        TILE: tl.constexpr,           # tokens per inner tile; a power of 2
++        N_TILES: tl.constexpr,        # ceil(BLOCK_SIZE / TILE)
+     ):
+         h = tl.program_id(0)
+         blk = tl.program_id(1)
+@@ -61,19 +67,36 @@ if HAS_TRITON:
+         d_ok = d < HEAD_SIZE
+         q = tl.load(q_ptr + h * q_sh + d * q_sd, mask=d_ok, other=0.0).to(tl.float32)
+ 
+-        n = tl.arange(0, BLOCK_SIZE)
+-        tok = blk * BLOCK_SIZE + n
+-        tok_ok = tok < n_keys
++        # The block is walked in FIXED-SIZE TILES rather than as one tile.
++        #
++        # `tl.arange` needs a power-of-two extent, and the paged block size is
++        # not one in general -- vLLM sizes it per model and backend. Rounding
++        # the block up to a power of two works while blocks are small, but a
++        # hybrid model (full attention interleaved with gated-delta-net layers)
++        # gets its attention page sized to match the GDN state page: Qwen3.5
++        # reports block_size=1056, which rounds to 2048 and asks for a
++        # [2048, HEAD_SIZE] float tile -- megabytes per program. The kernel
++        # then does not write its output and the scores come back NaN.
++        #
++        # A constant tile keeps register pressure fixed whatever the block
++        # size. TILE divides evenly into the arange, and every token is still
++        # visited exactly once because the loop covers [0, BLOCK_SIZE).
+         block_id = tl.load(block_table_ptr + blk).to(tl.int64)
+ 
+-        k = tl.load(
+-            k_ptr + block_id * k_sb + n[:, None] * k_sn + kvh * k_sh + d[None, :] * k_sd,
+-            mask=tok_ok[:, None] & d_ok[None, :],
+-            other=0.0,
+-        ).to(tl.float32)
++        for t0 in tl.static_range(0, N_TILES):
++            n = t0 * TILE + tl.arange(0, TILE)
++            tok = blk * BLOCK_SIZE + n
++            tok_ok = (n < BLOCK_SIZE) & (tok < n_keys)
+ 
+-        logits = tl.sum(k * q[None, :], axis=1) * scale
+-        tl.store(out_ptr + h * out_sh + tok, logits, mask=tok_ok)
++            k = tl.load(
++                k_ptr + block_id * k_sb + n[:, None] * k_sn + kvh * k_sh
++                + d[None, :] * k_sd,
++                mask=tok_ok[:, None] & d_ok[None, :],
++                other=0.0,
++            ).to(tl.float32)
++
++            logits = tl.sum(k * q[None, :], axis=1) * scale
++            tl.store(out_ptr + h * out_sh + tok, logits, mask=tok_ok)
+ 
+ 
+ def decode_attention(
+@@ -109,6 +132,17 @@ def decode_attention(
+     if scratch is None or scratch.shape[1] < n_keys:
+         scratch = torch.empty(num_query_heads, n_keys, dtype=torch.float32, device=q.device)
+     logits = scratch[:, :n_keys]
++    # ZEROED, not left as whatever was in memory. Every position in
++    # [0, n_keys) should be written by the grid below, but if any is not, an
++    # uninitialised buffer turns that into NaN after the softmax -- which
++    # propagates through the whole reduction and is far harder to trace than
++    # an obviously-wrong zero. Costs one pass over a [heads, n_keys] f32.
++    logits.zero_()
++
++    # Tokens per inner tile. 128 keeps the [TILE, PAD_D] tile small enough to
++    # stay in registers at any head size the connector supports, and divides
++    # the common block sizes (16, 32, 64, 128) in a single iteration.
++    tile = min(128, triton.next_power_of_2(block_size))
+ 
+     if not HAS_TRITON:
+         return decode_attention_torch(
+@@ -123,6 +157,8 @@ def decode_attention(
+         GROUP=group,
+         HEAD_SIZE=head_size,
+         PAD_D=triton.next_power_of_2(head_size),
++        TILE=tile,
++        N_TILES=(block_size + tile - 1) // tile,
+     )
+     # Softmax over the sequence: the row is its own normaliser, so FlashAttention's
+     # LSE is not needed.
+diff --git a/tests/test_aggregations.py b/tests/test_aggregations.py
+index 815f611..eabd3c9 100644
+--- a/tests/test_aggregations.py
++++ b/tests/test_aggregations.py
+@@ -18,10 +18,24 @@ Run: python experiments/vllm-attn-connector/test_aggregations.py
+ """
+ from __future__ import annotations
+ 
++import importlib.util
++import pathlib
+ import sys
+ 
+ import torch
+ 
++# Loaded by PATH, not as `vllm_attn_connector.kernels`: importing the package
++# runs its __init__, which imports connector.py, which imports vLLM. This file
++# is the suite that must run with no GPU and no vLLM, and kernels.py itself has
++# no vLLM dependency -- only the package entry point does.
++_KERNELS = (pathlib.Path(__file__).resolve().parent.parent
++            / "src" / "vllm_attn_connector" / "kernels.py")
++_spec = importlib.util.spec_from_file_location("_attn_kernels", _KERNELS)
++_kernels = importlib.util.module_from_spec(_spec)
++sys.modules["_attn_kernels"] = _kernels
++_spec.loader.exec_module(_kernels)
++decode_attention_torch = _kernels.decode_attention_torch
++
+ 
+ def streaming(layers: list[torch.Tensor]):
+     """What score_step does: one layer at a time, O(T) state."""
+@@ -163,6 +177,59 @@ def _load_segment_fns():
+     return ns
+ 
+ 
++def test_block_sizes_not_powers_of_two() -> None:
++    """The reference scores every cached position at any paged block size.
++
++    Triton's ``tl.arange`` needs a power-of-two extent, but vLLM chooses the
++    paged block size per model and backend and does not guarantee one: a
++    Qwen3.5 MoE (head_dim 256, 2 KV heads) picked a value that made the kernel
++    fail to compile with "arange's range must be a power of 2". The kernel now
++    iterates a padded extent and masks the tail, exactly as it already did for
++    head_size via PAD_D.
++
++    This test covers the torch reference rather than the Triton kernel, since
++    it has to run without a GPU -- but it pins the arithmetic the padded kernel
++    has to reproduce: every position in [0, n_keys) is scored exactly once, and
++    none of the padding leaks in.
++    """
++    import math
++
++    def naive(q, kv, bt, n_keys, nqh):
++        bs, nkv, hd = kv.shape[1], kv.shape[2], kv.shape[3]
++        group = nqh // nkv
++        out = torch.zeros(nqh, n_keys)
++        for pos in range(n_keys):
++            blk, off = bt[pos // bs].item(), pos % bs
++            for h in range(nqh):
++                out[h, pos] = (q[h].float() * kv[blk, off, h // group].float()
++                               ).sum() / math.sqrt(hd)
++        return torch.softmax(out, dim=-1)
++
++    torch.manual_seed(0)
++    for block_size in (16, 12, 24, 48, 80, 100):
++        nqh, nkv, head_dim, n_blocks = 8, 2, 64, 6
++        q = torch.randn(nqh, head_dim)
++        kv = torch.randn(n_blocks, block_size, nkv, head_dim)
++        bt = torch.arange(n_blocks)
++        # a partial final block, so the n_keys mask is exercised too
++        n_keys = min(block_size * n_blocks, block_size * 3 + 5)
++        got = decode_attention_torch(q, kv, bt, n_keys, num_query_heads=nqh)
++        want = naive(q, kv, bt, n_keys, nqh)
++        assert got.shape == (nqh, n_keys), (block_size, got.shape)
++        assert torch.allclose(got, want, atol=1e-5), (
++            f"block_size={block_size}: max diff "
++            f"{(got - want).abs().max().item():.2e}")
++        assert torch.allclose(got.sum(-1), torch.ones(nqh), atol=1e-5)
++
++    # and the padding arithmetic itself: n < BLOCK_SIZE must leave no gaps
++    for block_size in (12, 24, 80):
++        pad_n = 1 << (block_size - 1).bit_length()
++        covered = sorted({b * block_size + n
++                          for b in range(3) for n in range(pad_n)
++                          if n < block_size and b * block_size + n < block_size * 3})
++        assert covered == list(range(block_size * 3)), block_size
++
++
+ def test_segments() -> None:
+     ns = _load_segment_fns()
+     plan_fn, index_fn, topk_fn = (ns["_segment_plan"], ns["_segment_index"],
