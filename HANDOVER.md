@@ -183,7 +183,128 @@ without reading the caveats:
 
 ---
 
-## 7. Traps that have each cost a day
+## 7. Adding a new poisoning strategy
+
+An "arm" is one intended corruption, applied to the same place in every chain
+that has such a place. It is not one edit: the text differs per chain, so the
+arm is a *locator* plus a set of equivalent phrasings, and the build step picks
+whichever phrasing preserves the token count for each chain.
+
+### The four steps
+
+**1. Write a locator** in `scripts/build_poison_manifest.py`:
+
+```python
+_MYTHING = re.compile(r"the exact phrase you intend to corrupt")
+
+def _myarm(prompt, row):
+    if not _MYTHING.search(prompt):
+        return None                      # this chain has no such span -- fine
+    return ("the exact phrase you intend to corrupt",
+            ["a corrupted phrasing",     # several SEMANTICALLY EQUIVALENT
+             "another corrupted phrasing",   # wordings of ONE corruption
+             "a third corrupted phrasing"])
+```
+
+It returns `(find, candidates)` or `None`. `find` must occur **exactly once**
+in the prompt — `locate()` raises if it occurs zero times or more than once,
+which is deliberate: an ambiguous match would poison an arbitrary occurrence.
+
+**2. Register it** in the `ARMS` table:
+
+```python
+ARMS = [
+    ...
+    ("myarm", "prose", "rules", _myarm, "prompt"),
+]
+```
+
+`form` is the factor level you are contrasting (`prose`, `data-table`,
+`history`, `control`). `kind` must name a real segment kind — `qc_lookup`,
+`rules`, `output_format`, `answer`, … — because the analysis joins the poison
+to its attention through that name. `where` is `prompt` or `history`.
+
+**3. Build and pre-flight**, no GPU, seconds:
+
+```bash
+python scripts/build_poison_manifest.py --limit 20 --model Qwen/Qwen3.5-35B-A3B
+DRY=1 ./scripts/run_poison_suite.sh myarm
+```
+
+The build writes `configs/poison/myarm.json` and prints coverage. Each chain
+entry is resolved down to a single concrete edit:
+
+```json
+{"find": "floor for a panel claim is 15.",
+ "replace": "floor for a panel claim is 01.",
+ "char_lo": 1917, "char_hi": 1947}
+```
+
+**4. Run it**, then analyse:
+
+```bash
+./scripts/run_poison_suite.sh myarm          # clean twin runs too
+python scripts/poison_report.py results/poison-suite-<stamp>.json
+```
+
+### Why the candidate list exists
+
+Give several phrasings or the build will reject your arm. Token parity is the
+constraint: any token-count change shifts every index after the poison,
+re-basing the distance axis the whole analysis rests on and breaking the clean
+twin's identical-span guarantee.
+
+You cannot predict which phrasings balance. Measured in a real prompt under
+Qwen3.5's tokenizer, replacing the floor value `15`:
+
+```
+'01' +0    '02' +0    '1' -1    '100' +1
+```
+
+and replacing `AGREES`: `'DENIES' +0`, `'REFUTES' +0`, `'DISAGREES' +2`.
+Equal character counts do not imply equal token counts, and the result depends
+on the surrounding text as well as the string — `AGREES`→`DENIES` is 3 tokens
+against 2 in isolation but balances in context. That is exactly why the check
+is per chain and in situ rather than done once at authoring time.
+
+`find_balanced()` tries every candidate under the run's tokenizer and takes
+one with delta 0; if none balances for a chain, that is a build error, not a
+silent shift.
+
+Meaning is fixed by you; wording varies only to satisfy the measurement.
+
+**Parity is tokenizer-dependent.** A set that balances under one model may not
+under another, so rebuild the manifests whenever the model changes. The
+manifest records the model it was built for.
+
+### Coverage is data, not a defect
+
+A locator returning `None` is a normal outcome — seven of the first twenty
+chains have no quality gate in round 1 at all, so `qc`, `rules` and `schema`
+cannot apply to them. Each arm records the chains it covers, and
+`configs/poison/coverage.json` carries the per-arm lists plus their
+intersection.
+
+Clean-vs-poisoned pairing is unaffected, because it pairs a chain with itself.
+**Cross-arm comparison is only valid on the intersection** — and because
+coverage differs per arm, the same poison can read 81.8%, 70.9% or 87.1%
+depending on which turns are in the denominator. Fix the population before
+quoting a flip rate.
+
+### Before you believe the result
+
+- Add a **control** if your arm introduces a new form — `null` changes a number
+  that cannot affect the answer, and its delta is the floor your arm must beat.
+- Report attention **regardless of whether the answer flipped**. The existing
+  study found the attention signature tracks the model *noticing* a poison, not
+  the poison *succeeding*, and those are inversely related. An arm with zero
+  flips and a large attention delta is a result, not a failure.
+- Expect density **not** to predict efficacy. It did not last time: the densest
+  span flipped 1 of 87 and a mid-density one flipped 80%.
+
+---
+
+## 8. Traps that have each cost a day
 
 - **Round is confounded with task type.** Round N is almost always the same task
   across chains, so `by_round` is difficulty, not depth. Use `propagation`.
@@ -212,7 +333,7 @@ without reading the caveats:
 
 ---
 
-## 8. State of the repo as handed over
+## 9. State of the repo as handed over
 
 - 35 run directories in `results/`, **14 GB**. Provenance runs, the reference,
   the gt/self-history pair, and the full poisoning suite including a 16k arm.
